@@ -21,6 +21,14 @@ fn main() {
                     stream
                         .write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes())
                         .unwrap();
+                } else if path.starts_with("/echo") {
+                    let (_, str_param) = path.split_at(6);
+                    let mut response = String::new();
+                    response.push_str("HTTP/1.1 200 OK\r\n");
+                    response.push_str("Content-Type: text/plain\r\n");
+                    response.push_str(&format!("Content-Length: {}\r\n\r\n", str_param.len()));
+                    response.push_str(str_param);
+                    stream.write_all(response.as_bytes()).unwrap();
                 } else {
                     stream
                         .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())

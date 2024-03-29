@@ -1,8 +1,13 @@
 use std::{
+    env,
+    fs::File,
     io::{Error, Read, Write},
     net::{TcpListener, TcpStream},
+    path::Path,
     thread,
 };
+
+use itertools::Itertools;
 
 fn handle(stream: Result<TcpStream, Error>) {
     match stream {
@@ -43,6 +48,33 @@ fn handle(stream: Result<TcpStream, Error>) {
                 response.push_str(&format!("Content-Length: {}\r\n\r\n", str_param.len()));
                 response.push_str(str_param);
                 stream.write_all(response.as_bytes()).unwrap();
+            } else if path.starts_with("/files") {
+                let argss: Vec<String> = env::args().collect();
+                let emp = &" ".to_string();
+                println!("{:?}", argss);
+                let (pos, _) = argss
+                    .iter()
+                    .find_position(|arg| *arg == "--directory")
+                    .unwrap_or((0, emp));
+                let (_, str_param) = path.split_at(7);
+                println!("{}", str_param);
+                let file_path = Path::new(&argss[pos + 1]).join(str_param);
+                println!("{:?}", file_path);
+                if Path::is_file(&file_path) {
+                    let mut buff = String::new();
+                    let mut file_content = File::open(file_path).unwrap();
+                    let size = file_content.read_to_string(&mut buff).unwrap();
+                    let mut response = String::new();
+                    response.push_str("HTTP/1.1 200 OK\r\n");
+                    response.push_str("Content-Type: application/octet-stream\r\n");
+                    response.push_str(&format!("Content-Length: {}\r\n\r\n", size));
+                    response.push_str(&buff);
+                    stream.write_all(response.as_bytes()).unwrap();
+                } else {
+                    stream
+                        .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
+                        .unwrap();
+                }
             } else {
                 stream
                     .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
